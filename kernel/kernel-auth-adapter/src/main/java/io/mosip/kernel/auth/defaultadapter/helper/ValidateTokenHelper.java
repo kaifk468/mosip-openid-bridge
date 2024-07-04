@@ -17,8 +17,6 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.annotation.PostConstruct;
-
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +57,7 @@ import io.mosip.kernel.core.exception.ServiceError;
 import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.core.util.EmptyCheckUtils;
 import io.mosip.kernel.openid.bridge.model.MosipUserDto;
+import jakarta.annotation.PostConstruct;
 
 @Component
 public class ValidateTokenHelper {
@@ -77,7 +76,7 @@ public class ValidateTokenHelper {
 	private boolean validateIssuerDomain;
 
 	/**
-	 * This should be same as the value in the token	
+	 * This should be same as the value in the token
 	 */
 	@Value("${auth.server.admin.issuer.uri:}")
 	private String issuerURI;
@@ -102,6 +101,7 @@ public class ValidateTokenHelper {
 	 */
 	@Value("${auth.server.admin.issuer.internal.uri:}")
 	private String issuerInternalURI;
+
 	@Value("${auth.server.admin.audience.claim.validate:true}")
 	private boolean validateAudClaim;
 
@@ -127,7 +127,7 @@ public class ValidateTokenHelper {
 	@SuppressWarnings("java:S2259") // added suppress for sonarcloud. Null check is performed at line # 211
 	private String getApplicationName() {
 		String appNames = environment.getProperty("spring.application.name");
-		if (!EmptyCheckUtils.isNullEmpty(appNames)) {
+		if (appNames != null && !EmptyCheckUtils.isNullEmpty(appNames)) {
 			List<String> appNamesList = Stream.of(appNames.split(",")).collect(Collectors.toList());
 			return appNamesList.get(0);
 		} else {
@@ -325,7 +325,7 @@ public class ValidateTokenHelper {
 				errorNode = objectMapper.readTree(statusCodeException.getResponseBodyAsString());
 				LOGGER.error("Token validation failed error {} and message {}",
 						errorNode.get(AuthAdapterConstant.ERROR), errorNode.get(AuthAdapterConstant.ERROR_DESC));
-				return ImmutablePair.of(statusCodeException.getStatusCode(), null);
+				return ImmutablePair.of(HttpStatus.valueOf(statusCodeException.getStatusCode().value()), null);
 			} catch (IOException e) {
 				LOGGER.error("IO Excepton in parsing response {}", e.getMessage());
 			}

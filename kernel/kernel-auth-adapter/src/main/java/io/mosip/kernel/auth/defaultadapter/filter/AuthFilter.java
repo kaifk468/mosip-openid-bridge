@@ -13,12 +13,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,6 +54,11 @@ import io.mosip.kernel.openid.bridge.api.constants.Constants;
 import io.mosip.kernel.openid.bridge.api.constants.Errors;
 import io.mosip.kernel.openid.bridge.api.exception.ClientException;
 import io.mosip.kernel.openid.bridge.api.utils.JWTUtils;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * @author Ramadurai Saravana Pandian
@@ -148,7 +147,7 @@ public class AuthFilter extends AbstractAuthenticationProcessingFilter {
 	@Override
 	public Authentication attemptAuthentication(HttpServletRequest httpServletRequest,
 			HttpServletResponse httpServletResponse)
-			throws AuthenticationException, JsonProcessingException, IOException {
+			throws AuthenticationException, IOException, ServletException {
 		String token = null;
 		String idToken = null;
 		Cookie[] cookies = null;
@@ -203,6 +202,14 @@ public class AuthFilter extends AbstractAuthenticationProcessingFilter {
 		}
 
 		if (token == null) {
+			ResponseWrapper<ServiceError> errorResponse = setErrors(httpServletRequest);
+			ServiceError error = new ServiceError(AuthAdapterErrorCode.UNAUTHORIZED.getErrorCode(),
+					"Authentication Failed");
+			errorResponse.getErrors().add(error);
+			httpServletResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+			httpServletResponse.setContentType("application/json");
+			httpServletResponse.setCharacterEncoding("UTF-8");
+			httpServletResponse.getWriter().write(convertObjectToJson(errorResponse));
 			LOGGER.error("\n\n Exception : Authorization token not present > " + httpServletRequest.getRequestURL()
 					+ "\n\n");
 			return sendAuthenticationFailure(httpServletRequest, httpServletResponse);
@@ -237,7 +244,7 @@ public class AuthFilter extends AbstractAuthenticationProcessingFilter {
 		httpServletResponse.getWriter().write(convertObjectToJson(errorResponse));
 		return null;
 	}
-
+	
 	@Override
 	protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
 			Authentication authResult) throws IOException, ServletException {
@@ -292,7 +299,7 @@ public class AuthFilter extends AbstractAuthenticationProcessingFilter {
 	@SuppressWarnings("java:S2259") // added suppress for sonarcloud. Null check is performed at line # 211
 	private String getApplicationName(Environment environment) {
 		String appNames = environment.getProperty("spring.application.name");
-		if (!EmptyCheckUtils.isNullEmpty(appNames)) {
+		if (appNames != null && !EmptyCheckUtils.isNullEmpty(appNames)) {
 			List<String> appNamesList = Stream.of(appNames.split(",")).collect(Collectors.toList());
 			return appNamesList.get(0);
 		} else {
@@ -381,5 +388,6 @@ public class AuthFilter extends AbstractAuthenticationProcessingFilter {
 	private String sanitize(String msg) {
 		return msg.replaceAll("[\n\r]", " ");
 	}
+
 
 }
